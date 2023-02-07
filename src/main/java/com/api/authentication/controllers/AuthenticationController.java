@@ -44,7 +44,7 @@ public class AuthenticationController {
     MessageProperty messageProperty;
 
     @PostMapping
-    public ResponseEntity<Object> createUser (@RequestBody @Valid AuthenticationDto authenticationDto, BindingResult result) throws Exception {
+    public ResponseEntity<Object> createUser (@RequestBody @Valid AuthenticationDto authenticationDto, @org.jetbrains.annotations.NotNull BindingResult result) throws Exception {
         if (result.hasErrors()) {
             throw new AuthenticationOperationExceptionBadRequest(result.getFieldError().getDefaultMessage());
         }
@@ -77,7 +77,7 @@ public class AuthenticationController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<Object> login(@RequestBody @Valid AuthenticationConfirmAccountDto authenticationConfirmAccountDto, BindingResult result) throws Exception {
+    public ResponseEntity<Object> login(@RequestBody @Valid AuthenticationConfirmAccountDto authenticationConfirmAccountDto, @org.jetbrains.annotations.NotNull BindingResult result) throws Exception {
         if(result.hasErrors()) {
             throw new AuthenticationOperationExceptionBadRequest(result.getFieldError().getDefaultMessage());
         }
@@ -105,16 +105,20 @@ public class AuthenticationController {
     }
 
     @PutMapping("/resetPassword")
-    public ResponseEntity<Object> editUser(@RequestBody @Valid AuthenticationConfirmAccountDto authenticationConfirmAccountDto, BindingResult result) throws Exception {
+    public ResponseEntity<Object> editUser(@RequestBody @Valid AuthenticationConfirmAccountDto authenticationConfirmAccountDto, @org.jetbrains.annotations.NotNull BindingResult result) throws Exception {
         if (result.hasErrors()) {
             throw new AuthenticationOperationExceptionBadRequest(result.getFieldError().getDefaultMessage());
         }
 
-        if(authenticationService.confirmEmail(authenticationConfirmAccountDto.getEmail())) {
+        if(!authenticationService.confirmEmail(authenticationConfirmAccountDto.getEmail())) {
             throw new AuthenticationOperationExceptionBadRequest(messageProperty.getProperty("error.email.notRegistered"));
         }
 
         AuthenticationModel authenticationModel =  authenticationRepository.findByEmail(authenticationConfirmAccountDto.getEmail());
+
+        if(!authenticationModel.isUserStatus()) {
+            throw new AuthenticationOperationExceptionBadRequest(messageProperty.getProperty("error.account.notRegistered"));
+        }
 
         authenticationConfirmAccountDto.setPassword(authenticationService.passwordEncoder(authenticationConfirmAccountDto.getPassword()));
 
@@ -129,12 +133,12 @@ public class AuthenticationController {
     }
 
     @DeleteMapping()
-    public ResponseEntity<Object> deleteUser(@RequestBody @Valid AuthenticationConfirmAccountDto authenticationConfirmAccountDto, BindingResult result) throws Exception {
+    public ResponseEntity<Object> deleteUser(@RequestBody @Valid AuthenticationConfirmAccountDto authenticationConfirmAccountDto, @org.jetbrains.annotations.NotNull BindingResult result) throws Exception {
         if (result.hasErrors()) {
             throw new AuthenticationOperationExceptionBadRequest(result.getFieldError().getDefaultMessage());
         }
 
-        if(authenticationService.confirmEmail(authenticationConfirmAccountDto.getEmail())) {
+        if(!authenticationService.confirmEmail(authenticationConfirmAccountDto.getEmail())) {
             throw new AuthenticationOperationExceptionBadRequest(messageProperty.getProperty("error.account.notRegistered"));
         }
 
