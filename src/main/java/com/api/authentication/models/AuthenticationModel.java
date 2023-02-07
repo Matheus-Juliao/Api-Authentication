@@ -3,10 +3,10 @@ package com.api.authentication.models;
 import jakarta.persistence.*;
 
 //utilizei o Getter e o Setter do lombok e não o @Data afins de aprendizado
-import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
@@ -17,7 +17,8 @@ import java.time.LocalDateTime;
 public class AuthenticationModel implements Serializable {
 
     //Com relação ao serialVersionUID, ele faz conversões de objeto Java para 'bytes' para serem salvos no banco de dados feitos pela JVM
-    private  static final long serialVersionUID = 1L;
+    @Serial
+    private static final long serialVersionUID = 1L;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -43,6 +44,12 @@ public class AuthenticationModel implements Serializable {
 
     @Column(name = "last_update_date")
     private LocalDateTime lastUpdateDate;
+
+    @Column(name = "last_delete_date")
+    private LocalDateTime lastDeleteDate;
+
+    @Column(name = "last_account_reactivation_date")
+    private LocalDateTime lastAccountReactivationDate;
 
     @Column(name = "user_status", nullable = false)
     private boolean userStatus = true;

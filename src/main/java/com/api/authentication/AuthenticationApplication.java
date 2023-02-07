@@ -15,6 +15,7 @@ public class AuthenticationApplication {
 	}
 
 	@GetMapping("/")
+	@SuppressWarnings("unused")
 	public ResponseEntity<String> index() {
 		return ResponseEntity.ok("API rodando...");
 	}

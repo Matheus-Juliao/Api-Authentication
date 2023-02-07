@@ -1,9 +1,11 @@
 package com.api.authentication.controllers;
 
+import com.api.authentication.configurations.MessageProperty;
 import com.api.authentication.dtos.AuthenticationDto;
-import com.api.authentication.dtos.AuthenticationResetPasswordDto;
+import com.api.authentication.dtos.AuthenticationConfirmAccountDto;
 import com.api.authentication.dtos.CreateUserDto;
-import com.api.authentication.exception.AuthenticationOperationException;
+import com.api.authentication.exception.AuthenticationOperationExceptionBadRequest;
+import com.api.authentication.messages.MessagesSuccess;
 import com.api.authentication.models.AuthenticationModel;
 import com.api.authentication.repositories.AuthenticationRepository;
 import com.api.authentication.services.AuthenticationService;
@@ -17,6 +19,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,18 +30,23 @@ import java.util.UUID;
 @RestController
 @CrossOrigin(origins = "*", maxAge = 3600)
 @RequestMapping("/api/authentication")
+@SuppressWarnings("unused")
 public class AuthenticationController {
 
     //Ponto de injeção com o service
     @Autowired
     AuthenticationService authenticationService;
+
     @Autowired
     private AuthenticationRepository authenticationRepository;
+
+    @Autowired
+    MessageProperty messageProperty;
 
     @PostMapping
     public ResponseEntity<Object> createUser (@RequestBody @Valid AuthenticationDto authenticationDto, BindingResult result) throws Exception {
         if (result.hasErrors()) {
-            throw new AuthenticationOperationException(result.getFieldError().getDefaultMessage());
+            throw new AuthenticationOperationExceptionBadRequest(result.getFieldError().getDefaultMessage());
         }
 
         ResponseEntity<Object> validateUser = authenticationService.validateUser(authenticationDto);
@@ -69,17 +77,23 @@ public class AuthenticationController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody @Valid AuthenticationDto authenticationDto) {
-        return authenticationService.login(authenticationDto);
+    public ResponseEntity<Object> login(@RequestBody @Valid AuthenticationConfirmAccountDto authenticationConfirmAccountDto, BindingResult result) throws Exception {
+        if(result.hasErrors()) {
+            throw new AuthenticationOperationExceptionBadRequest(result.getFieldError().getDefaultMessage());
+        }
+
+        return authenticationService.login(authenticationConfirmAccountDto);
     }
 
+    //Rota desenvolvida para aprendizado
     @GetMapping("/listAllUserNoPages")
     public ResponseEntity<List<AuthenticationModel>> listAllUserNoPages() {
         return ResponseEntity.status(HttpStatus.OK).body(authenticationService.findAllNoPages());
     }
 
+    //Rota desenvolvida para aprendizado
     @GetMapping("/listAllUserWithPages")
-    public ResponseEntity<Page<AuthenticationModel>> listAllUserWithPages(@PageableDefault(page = 0, size = 10, sort = "id", direction = Sort.Direction.ASC) Pageable pageable) {
+    public ResponseEntity<Page<AuthenticationModel>> listAllUserWithPages(@PageableDefault(sort = "id", direction = Sort.Direction.ASC) Pageable pageable) {
         return ResponseEntity.status(HttpStatus.OK).body(authenticationService.findAllWithPages(pageable));
     }
 
@@ -91,22 +105,55 @@ public class AuthenticationController {
     }
 
     @PutMapping("/resetPassword")
-    public ResponseEntity<String> editUser(@RequestBody @Valid AuthenticationResetPasswordDto authenticationResetPasswordDto) {
-
-        if(!authenticationService.validateResetPassword(authenticationResetPasswordDto.getEmail())) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("User invalid");
+    public ResponseEntity<Object> editUser(@RequestBody @Valid AuthenticationConfirmAccountDto authenticationConfirmAccountDto, BindingResult result) throws Exception {
+        if (result.hasErrors()) {
+            throw new AuthenticationOperationExceptionBadRequest(result.getFieldError().getDefaultMessage());
         }
 
-        AuthenticationModel authenticationModel =  authenticationRepository.findByEmail(authenticationResetPasswordDto.getEmail());
+        if(authenticationService.confirmEmail(authenticationConfirmAccountDto.getEmail())) {
+            throw new AuthenticationOperationExceptionBadRequest(messageProperty.getProperty("error.email.notRegistered"));
+        }
 
-        authenticationResetPasswordDto.setPassword(authenticationService.passwordEncoder(authenticationResetPasswordDto.getPassword()));
+        AuthenticationModel authenticationModel =  authenticationRepository.findByEmail(authenticationConfirmAccountDto.getEmail());
 
-        BeanUtils.copyProperties(authenticationResetPasswordDto, authenticationModel);;
+        authenticationConfirmAccountDto.setPassword(authenticationService.passwordEncoder(authenticationConfirmAccountDto.getPassword()));
+
+        BeanUtils.copyProperties(authenticationConfirmAccountDto, authenticationModel);
         authenticationModel.setLastUpdateDate(LocalDateTime.now());
 
         authenticationService.saveNewPassword(authenticationModel);
 
-        return ResponseEntity.status(HttpStatus.OK).body("Password changed successfully");
+        MessagesSuccess success = new MessagesSuccess(messageProperty.getProperty("ok.password.changed"), HttpStatus.OK.value());
+
+        return ResponseEntity.status(HttpStatus.OK).body(success);
+    }
+
+    @DeleteMapping()
+    public ResponseEntity<Object> deleteUser(@RequestBody @Valid AuthenticationConfirmAccountDto authenticationConfirmAccountDto, BindingResult result) throws Exception {
+        if (result.hasErrors()) {
+            throw new AuthenticationOperationExceptionBadRequest(result.getFieldError().getDefaultMessage());
+        }
+
+        if(authenticationService.confirmEmail(authenticationConfirmAccountDto.getEmail())) {
+            throw new AuthenticationOperationExceptionBadRequest(messageProperty.getProperty("error.account.notRegistered"));
+        }
+
+        AuthenticationModel authenticationModel =  authenticationRepository.findByEmail(authenticationConfirmAccountDto.getEmail());
+
+        if(!authenticationModel.isUserStatus()) {
+            throw new AuthenticationOperationExceptionBadRequest(messageProperty.getProperty("error.account.notRegistered"));
+        }
+
+        if(BCrypt.checkpw(authenticationConfirmAccountDto.getPassword(), authenticationModel.getPassword())){
+            authenticationModel.setUserStatus(false);
+            authenticationModel.setLastDeleteDate(LocalDateTime.now());
+            authenticationService.delete(authenticationModel);
+            MessagesSuccess success = new MessagesSuccess(messageProperty.getProperty("ok.delete.user"),HttpStatus.OK.value());
+
+            return ResponseEntity.status(HttpStatus.OK).body(success);
+        }
+
+        throw new AuthenticationOperationExceptionBadRequest(messageProperty.getProperty("error.password.incorrect"));
     }
 
 }

@@ -1,7 +1,12 @@
 package com.api.authentication.services;
 
+import com.api.authentication.configurations.MessageProperty;
+import com.api.authentication.dtos.AuthenticationConfirmAccountDto;
 import com.api.authentication.dtos.AuthenticationDto;
+import com.api.authentication.dtos.CreateUserDto;
 import com.api.authentication.dtos.ErrorValidationDto;
+import com.api.authentication.exception.AuthenticationOperationExceptionBadRequest;
+import com.api.authentication.messages.MessagesSuccess;
 import com.api.authentication.models.AuthenticationModel;
 import com.api.authentication.repositories.AuthenticationRepository;
 import com.api.authentication.security.SecurityConfigurations;
@@ -12,6 +17,9 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
+import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.NotNull;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -20,10 +28,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.stereotype.Service;
 
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.time.LocalDateTime;
+import java.util.*;
 
 
 @Service
@@ -36,7 +42,10 @@ public class AuthenticationService {
     @Autowired
     SecurityConfigurations securityConfigurations;
 
-    //Salvando dados no banco
+    @Autowired
+    MessageProperty messageProperty;
+
+    //Ações no banco de dados
     //@Transactional é usado quando temos relacionamentos que têem deleção ou salvamento em cascata, ele garante um rollback voltando tudo ao normal caso aconteca algum problema.
     @Transactional
     public AuthenticationModel saveUser(AuthenticationModel authenticationModel) {
@@ -44,6 +53,10 @@ public class AuthenticationService {
     }
 
     public void saveNewPassword(AuthenticationModel authenticationModel) {
+        authenticationRepository.save(authenticationModel);
+    }
+
+    public void delete(AuthenticationModel authenticationModel) {
         authenticationRepository.save(authenticationModel);
     }
 
@@ -65,7 +78,7 @@ public class AuthenticationService {
 
     //Validações
 
-    private String validByCpfCnpj(String cpfCnpj) {
+    private String validByCpfCnpj(@NotNull String cpfCnpj) {
         ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
         Validator validator = factory.getValidator();
 
@@ -93,58 +106,101 @@ public class AuthenticationService {
         return "valid";
     }
 
-    public ResponseEntity<Object> validateUser(AuthenticationDto authenticationDto) {
+    public ResponseEntity<Object> validateUser(@NotNull AuthenticationDto authenticationDto) {
         //Retirando pontuação do cpfCnpj
         authenticationDto.setCpfCnpj(removeTheTagCpfCnpj(authenticationDto.getCpfCnpj()));
 
         ErrorValidationDto errorValidationDto = new ErrorValidationDto(new Date(), 400);
 
+        //Verificando se o cpfCnpj da conta já existiu para reativação do mesmo
         if(existByCpfCnpj(authenticationDto.getCpfCnpj())) {
+            AuthenticationModel authenticationModel = authenticationRepository.findBycpfCnpj(authenticationDto.getCpfCnpj());
+
+            //Verifica se o novo email passado e o email cadastrado se diferem e caso for sim, verifica se não existe no banco de dados
+            if(!authenticationDto.getEmail().equals(authenticationModel.getEmail())) {
+                if(authenticationRepository.existsByEmail(authenticationDto.getEmail())) {
+                    errorValidationDto.setField("email");
+                    errorValidationDto.setMessage(messageProperty.getProperty("error.email.already.account"));
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorValidationDto);
+                }
+            }
+
+            //Verificando se a conta existente estava desativada para reativar se não a conta não pode ser criada
+            if(!authenticationModel.isUserStatus()) {
+                authenticationDto.setLastAccountReactivationDate(LocalDateTime.now());
+                authenticationDto.setEmail(authenticationDto.getEmail());
+                authenticationDto.setPassword(passwordEncoder(authenticationDto.getPassword()));
+                authenticationModel.setExternalId(UUID.randomUUID().toString());
+                authenticationModel.setUserStatus(true);
+
+                //Faz a conversão do dto em model passando o que vai ser convertido para o que está sendo convertido
+                BeanUtils.copyProperties(authenticationDto, authenticationModel);
+
+                authenticationModel = saveUser(authenticationModel);
+
+                CreateUserDto createUserDto = new CreateUserDto(
+                        authenticationModel.getExternalId(),
+                        authenticationModel.getCpfCnpj(),
+                        authenticationModel.getEmail(),
+                        authenticationModel.getName()
+                );
+
+                return ResponseEntity.status(HttpStatus.OK).body(createUserDto);
+            }
+
             errorValidationDto.setField("cpfCnpj");
-            errorValidationDto.setMessage("cpfCnpj is already registered");
+            errorValidationDto.setMessage(messageProperty.getProperty("error.account.already"));
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorValidationDto);
         }
 
         if(validByCpfCnpj(authenticationDto.getCpfCnpj()).compareTo("invalid") == 0) {
             errorValidationDto.setField("cpfCnpj");
-            errorValidationDto.setMessage("cpfCnpj invalid!");
+            errorValidationDto.setMessage(messageProperty.getProperty("error.cpfCnpj.invalid"));
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorValidationDto);
         }
 
         if(existsByEmail(authenticationDto.getEmail())) {
             errorValidationDto.setField("email");
-            errorValidationDto.setMessage("email is already registered");
+            errorValidationDto.setMessage(messageProperty.getProperty("error.email.already.account"));
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorValidationDto);
         }
 
         return null;
     }
 
-    public boolean validateResetPassword (String email) {
-        return existsByEmail(email) ? true : false;
+    public boolean confirmEmail (String email) {
+        return authenticationRepository.existsByEmail(email);
     }
 
 
 
 
-    //Ações
+    //Ações na autenticação
 
-    public ResponseEntity<String> login(AuthenticationDto authenticationDto) {
-        String cpfCnpj = removeTheTagCpfCnpj(authenticationDto.getCpfCnpj());
-        if(!existByCpfCnpj(cpfCnpj)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Cpf/Cnpj not registered!");
+    public ResponseEntity<Object> login(@NotNull AuthenticationConfirmAccountDto authenticationConfirmAccountDto) {
+        if(!existsByEmail(authenticationConfirmAccountDto.getEmail())) {
+            throw new AuthenticationOperationExceptionBadRequest(messageProperty.getProperty("error.account.notRegistered"));
         }
 
-        Optional<AuthenticationModel> authenticationModel = authenticationRepository.findBycpfCnpj(cpfCnpj);
+        AuthenticationModel authenticationModel = authenticationRepository.findByEmail(authenticationConfirmAccountDto.getEmail());
 
-        if(BCrypt.checkpw(authenticationDto.getPassword(), authenticationModel.get().getPassword())) {
-            return ResponseEntity.status(HttpStatus.OK).body("Login successfully!");
+        if(!authenticationModel.isUserStatus()) {
+            throw new AuthenticationOperationExceptionBadRequest(messageProperty.getProperty("error.account.notRegistered"));
         }
 
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized!");
+        if(BCrypt.checkpw(authenticationConfirmAccountDto.getPassword(), authenticationModel.getPassword())) {
+            MessagesSuccess success = new MessagesSuccess(messageProperty.getProperty("ok.login.success"), HttpStatus.OK.value());
+
+            return ResponseEntity.status(HttpStatus.OK).body(success);
+        }
+
+        MessagesSuccess success = new MessagesSuccess(messageProperty.getProperty("error.unauthorized"), HttpStatus.UNAUTHORIZED.value());
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(success);
     }
 
-    private String removeTheTagCpfCnpj (String cpfCnpj) {
+    @Contract(pure = true)
+    private @NotNull String removeTheTagCpfCnpj (@NotNull String cpfCnpj) {
         return  cpfCnpj.replaceAll("\\p{Punct}", "");
     }
 

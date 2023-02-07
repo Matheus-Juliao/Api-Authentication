@@ -22,11 +22,11 @@ public interface AuthenticationRepository extends JpaRepository<AuthenticationMo
     @Query(
             value = "SELECT * FROM users u WHERE u.cpf_cnpj = :cpfCnpj",
             nativeQuery = true)
-    Optional<AuthenticationModel> findBycpfCnpj(String cpfCnpj);
+    AuthenticationModel findBycpfCnpj(String cpfCnpj);
 
     @Query(
             value = "SELECT * FROM users u WHERE u.email = :email",
             nativeQuery = true)
-    AuthenticationModel findByEmail(String email);
+     AuthenticationModel findByEmail(String email);
 
 }

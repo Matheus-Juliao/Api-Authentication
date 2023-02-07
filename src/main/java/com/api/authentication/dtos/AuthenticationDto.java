@@ -5,30 +5,33 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
-import org.hibernate.validator.constraints.UniqueElements;
+
+import java.time.LocalDateTime;
 
 //Getters e Setters e outros métodos com o lombok
 @Data
 public class AuthenticationDto {
 
-    @NotBlank(message = "cpfCnpj is mandatory field")
-    @NotNull(message = "cpfCnpj is mandatory field")
-    @Size(max = 18, message = "cpfCnpj field has a maximum size of 18 characters")
+    @NotBlank(message = "{error.cpfCnpj.notBlank}")
+    @NotNull(message = "{error.cpfCnpj.notNull}")
+    @Size(max = 18, message = "{error.cpfCnpj.Size}")
     private String cpfCnpj;
 
-    @NotBlank(message = "email is mandatory field")
-    @NotNull(message = "email is mandatory field")
-    @Size(max = 50, message = "email field has a maximum size of 50 characters")
-    @Email(message = "email invalid")
+    @NotBlank(message = "{error.email.notBlank}")
+    @NotNull(message = "{error.email.notNull}")
+    @Size(max = 50, message = "{error.email.size}")
+    @Email(message = "{error.email.invalid}")
     private String email;
 
-    @NotBlank(message = "name is mandatory field")
-    @NotNull(message = "name is mandatory field")
-    @Size(max = 30, message = "Name field has a maximum size of 30 characters")
+    @NotBlank(message = "{error.name.notBlank}")
+    @NotNull(message = "{error.name.notNull}")
+    @Size(max = 30, message = "{error.name.size}")
     private String name;
 
-    @NotBlank(message = "password is mandatory field")
-    @NotNull(message = "password is mandatory field")
-    @Size(min = 8, max = 20, message = "password field has size minimum of 8 and a maximum of 20 characters")
+    @NotBlank(message = "{error.password.notBlank}")
+    @NotNull(message = "{error.password.notNull}")
+    @Size(min = 8, max = 20, message = "{error.password.size}")
     private String password;
+
+    private LocalDateTime lastAccountReactivationDate;
 }
