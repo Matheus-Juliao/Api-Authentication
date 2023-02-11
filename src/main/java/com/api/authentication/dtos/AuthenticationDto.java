@@ -1,13 +1,10 @@
 package com.api.authentication.dtos;
 
-import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
-
-import java.time.LocalDateTime;
 
 //Getters e Setters e outros métodos com o lombok
 @Data
@@ -15,7 +12,7 @@ public class AuthenticationDto {
 
     @NotBlank(message = "{error.cpfCnpj.notBlank}")
     @NotNull(message = "{error.cpfCnpj.notNull}")
-    @Size(min = 14, max = 18, message = "{error.cpfCnpj.Size}")
+    @Size(min = 11, max = 18, message = "{error.cpfCnpj.size}")
 //    @Schema(description = "cpf ou cnpj do usuário", example = "04922351043")
     private String cpfCnpj;
 

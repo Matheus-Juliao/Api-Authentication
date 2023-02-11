@@ -106,24 +106,21 @@ public class AuthenticationController {
 
     //Rota desenvolvida para aprendizado
     @GetMapping("/listAllUserNoPages")
-    @Operation(summary = "Returns all users without using pagination", description = "API to list all users and their information on the platform\n" +
-            "\n" + "Note: This route is designed for learning")
+    @Operation(summary = "Returns all users without using pagination", description = "API to list all users and their information on the platform\n\nNote: This route is designed for learning")
     public ResponseEntity<List<AuthenticationModel>> listAllUserNoPages() {
         return ResponseEntity.status(HttpStatus.OK).body(authenticationService.findAllNoPages());
     }
 
     //Rota desenvolvida para aprendizado
     @GetMapping("/listAllUserWithPages")
-    @Operation(summary = "Returns all users using pagination", description = "API to list all users and their information on the platform\n" +
-            "\n" + "Note: This route is designed for learning")
+    @Operation(summary = "Returns all users using pagination", description = "API to list all users and their information on the platform\n\nNote: This route is designed for learning")
     public ResponseEntity<Page<AuthenticationModel>> listAllUserWithPages(@ParameterObject @PageableDefault(sort = "id", direction = Sort.Direction.ASC) Pageable pageable) {
         return ResponseEntity.status(HttpStatus.OK).body(authenticationService.findAllWithPages(pageable));
     }
 
     //Rota desenvolvida para aprendizado
     @GetMapping("/{externalId}")
-    @Operation(summary = "Returns a user", description = "API to fetch a user on the platform\n" +
-        "\n" + "Note: This route is designed for learning")
+    @Operation(summary = "Returns a user", description = "API to fetch a user on the platform\n\nNote: This route is designed for learning")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Success", content = { @Content(mediaType = "application/json", schema = @Schema(implementation = AuthenticationModel.class)) }),
             @ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true)))
@@ -151,34 +148,35 @@ public class AuthenticationController {
             throw new AuthenticationOperationExceptionBadRequest(result.getFieldError().getDefaultMessage());
         }
 
-        if(!authenticationService.confirmEmail(authenticationConfirmAccountDto.getEmail())) {
-            throw new AuthenticationOperationExceptionBadRequest(messageProperty.getProperty("error.email.notRegistered"));
+        if(authenticationService.confirmEmail(authenticationConfirmAccountDto.getEmail())) {
+            AuthenticationModel authenticationModel =  authenticationRepository.findByEmail(authenticationConfirmAccountDto.getEmail());
+
+            if(!authenticationModel.isUserStatus()) {
+                throw new AuthenticationOperationExceptionBadRequest(messageProperty.getProperty("error.account.notRegistered"));
+            }
+
+            //Enviar token
+
+            authenticationConfirmAccountDto.setPassword(authenticationService.passwordEncoder(authenticationConfirmAccountDto.getPassword()));
+
+            BeanUtils.copyProperties(authenticationConfirmAccountDto, authenticationModel);
+            authenticationModel.setLastUpdateDate(LocalDateTime.now());
+
+            authenticationService.saveNewPassword(authenticationModel);
+
+            MessagesSuccess success = new MessagesSuccess(messageProperty.getProperty("ok.password.changed"), HttpStatus.OK.value());
+
+            return ResponseEntity.status(HttpStatus.OK).body(success);
         }
 
-        AuthenticationModel authenticationModel =  authenticationRepository.findByEmail(authenticationConfirmAccountDto.getEmail());
+        throw new AuthenticationOperationExceptionBadRequest(messageProperty.getProperty("error.email.notRegistered"));
 
-        if(!authenticationModel.isUserStatus()) {
-            throw new AuthenticationOperationExceptionBadRequest(messageProperty.getProperty("error.account.notRegistered"));
-        }
-
-        //Enviar token
-
-        authenticationConfirmAccountDto.setPassword(authenticationService.passwordEncoder(authenticationConfirmAccountDto.getPassword()));
-
-        BeanUtils.copyProperties(authenticationConfirmAccountDto, authenticationModel);
-        authenticationModel.setLastUpdateDate(LocalDateTime.now());
-
-        authenticationService.saveNewPassword(authenticationModel);
-
-        MessagesSuccess success = new MessagesSuccess(messageProperty.getProperty("ok.password.changed"), HttpStatus.OK.value());
-
-        return ResponseEntity.status(HttpStatus.OK).body(success);
     }
 
     @DeleteMapping()
     @Operation(summary = "Delete a user's account", description = "API to delete a user account on the platform")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "204", description = "Success", content = @Content(schema = @Schema(hidden = true))),
+        @ApiResponse(responseCode = "200", description = "Success", content = @Content(schema = @Schema(hidden = true))),
         @ApiResponse(responseCode = "400", description = "Bad Request", content = @Content(schema = @Schema(hidden = true))),
         @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true)))
     })
@@ -187,26 +185,26 @@ public class AuthenticationController {
             throw new AuthenticationOperationExceptionBadRequest(result.getFieldError().getDefaultMessage());
         }
 
-        if(!authenticationService.confirmEmail(authenticationConfirmAccountDto.getEmail())) {
-            throw new AuthenticationOperationExceptionBadRequest(messageProperty.getProperty("error.account.notRegistered"));
+        if(authenticationService.confirmEmail(authenticationConfirmAccountDto.getEmail())) {
+            AuthenticationModel authenticationModel =  authenticationRepository.findByEmail(authenticationConfirmAccountDto.getEmail());
+
+            if(!authenticationModel.isUserStatus()) {
+                throw new AuthenticationOperationExceptionBadRequest(messageProperty.getProperty("error.account.notRegistered"));
+            }
+
+            if(BCrypt.checkpw(authenticationConfirmAccountDto.getPassword(), authenticationModel.getPassword())){
+                authenticationModel.setUserStatus(false);
+                authenticationModel.setLastDeleteDate(LocalDateTime.now());
+                authenticationService.delete(authenticationModel);
+                MessagesSuccess success = new MessagesSuccess(messageProperty.getProperty("ok.delete.user"),HttpStatus.OK.value());
+
+                return ResponseEntity.status(HttpStatus.OK).body(success);
+            }
+
+            throw new AuthenticationOperationExceptionBadRequest(messageProperty.getProperty("error.password.incorrect"));
         }
 
-        AuthenticationModel authenticationModel =  authenticationRepository.findByEmail(authenticationConfirmAccountDto.getEmail());
-
-        if(!authenticationModel.isUserStatus()) {
-            throw new AuthenticationOperationExceptionBadRequest(messageProperty.getProperty("error.account.notRegistered"));
-        }
-
-        if(BCrypt.checkpw(authenticationConfirmAccountDto.getPassword(), authenticationModel.getPassword())){
-            authenticationModel.setUserStatus(false);
-            authenticationModel.setLastDeleteDate(LocalDateTime.now());
-            authenticationService.delete(authenticationModel);
-            MessagesSuccess success = new MessagesSuccess(messageProperty.getProperty("ok.delete.user"),HttpStatus.NO_CONTENT.value());
-
-            return ResponseEntity.status(HttpStatus.NO_CONTENT).body(success);
-        }
-
-        throw new AuthenticationOperationExceptionBadRequest(messageProperty.getProperty("error.password.incorrect"));
+        throw new AuthenticationOperationExceptionBadRequest(messageProperty.getProperty("error.account.notRegistered"));
     }
 
 }

@@ -2,8 +2,8 @@ package com.api.authentication;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
+//import org.springframework.http.ResponseEntity;
+//import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @SpringBootApplication
@@ -14,11 +14,13 @@ public class AuthenticationApplication {
 		SpringApplication.run(AuthenticationApplication.class, args);
 	}
 
-/*	@GetMapping("/")
-	@SuppressWarnings("unused")
+	/* Endpoint para ver se a aplicação subiu
+
+	@GetMapping("/")
 	public ResponseEntity<String> index() {
 		return ResponseEntity.ok("API rodando...");
 	}
-*/
+
+	*/
 
 }
