@@ -11,9 +11,9 @@ public class ExceptionResponseNotFoundAndUnauthorized implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    private Date timestamp;
-    private String message;
-    private Integer code;
+    private final Date timestamp;
+    private final String message;
+    private final Integer code;
 
     public ExceptionResponseNotFoundAndUnauthorized(Date timestamp, String message, Integer code) {
         this.timestamp = timestamp;

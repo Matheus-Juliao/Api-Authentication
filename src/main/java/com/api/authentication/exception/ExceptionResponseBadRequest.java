@@ -12,10 +12,10 @@ public class ExceptionResponseBadRequest implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    private Date timestamp;
-    private String message;
-    private String field;
-    private Integer code;
+    private final Date timestamp;
+    private final String message;
+    private final String field;
+    private final Integer code;
 
     public ExceptionResponseBadRequest(Date timestamp, String message, String field, Integer code) {
         this.timestamp = timestamp;

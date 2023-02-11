@@ -32,6 +32,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @RestController
@@ -57,9 +58,9 @@ public class AuthenticationController {
         @ApiResponse(responseCode = "400", description = "Bad Request", content = @Content(schema = @Schema(hidden = true))),
         @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true)))
     })
-    public ResponseEntity<Object> createUser (@RequestBody @Valid AuthenticationDto authenticationDto, @org.jetbrains.annotations.NotNull BindingResult result) throws Exception {
+    public ResponseEntity<Object> createUser (@RequestBody @Valid AuthenticationDto authenticationDto, @org.jetbrains.annotations.NotNull BindingResult result) throws AuthenticationOperationExceptionBadRequest {
         if (result.hasErrors()) {
-            throw new AuthenticationOperationExceptionBadRequest(result.getFieldError().getDefaultMessage());
+            throw new AuthenticationOperationExceptionBadRequest(Objects.requireNonNull(result.getFieldError()).getDefaultMessage());
         }
 
         ResponseEntity<Object> validateUser = authenticationService.validateUser(authenticationDto);
@@ -96,9 +97,9 @@ public class AuthenticationController {
             @ApiResponse(responseCode = "400", description = "Bad Request", content = @Content(schema = @Schema(hidden = true))),
             @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true)))
     })
-    public ResponseEntity<Object> login(@RequestBody @Valid AuthenticationConfirmAccountDto authenticationConfirmAccountDto, @org.jetbrains.annotations.NotNull BindingResult result) throws Exception {
+    public ResponseEntity<Object> login(@RequestBody @Valid AuthenticationConfirmAccountDto authenticationConfirmAccountDto, @org.jetbrains.annotations.NotNull BindingResult result) throws AuthenticationOperationExceptionBadRequest {
         if(result.hasErrors()) {
-            throw new AuthenticationOperationExceptionBadRequest(result.getFieldError().getDefaultMessage());
+            throw new AuthenticationOperationExceptionBadRequest(Objects.requireNonNull(result.getFieldError()).getDefaultMessage());
         }
 
         return authenticationService.login(authenticationConfirmAccountDto);
@@ -125,7 +126,7 @@ public class AuthenticationController {
             @ApiResponse(responseCode = "200", description = "Success", content = { @Content(mediaType = "application/json", schema = @Schema(implementation = AuthenticationModel.class)) }),
             @ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true)))
     })
-    public ResponseEntity<AuthenticationModel> listOneUser(@PathVariable(value = "externalId") @NotNull String externalId) throws Exception {
+    public ResponseEntity<AuthenticationModel> listOneUser(@PathVariable(value = "externalId") @NotNull String externalId) {
 
         AuthenticationModel authenticationModel = authenticationService.findById(externalId);
 
@@ -143,9 +144,9 @@ public class AuthenticationController {
             @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true)))
     })
     @Operation(summary = "Reset a new password", description = "API to reset a new password for a user on the platform")
-    public ResponseEntity<Object> editUser(@RequestBody @Valid AuthenticationConfirmAccountDto authenticationConfirmAccountDto, @org.jetbrains.annotations.NotNull BindingResult result) throws Exception {
+    public ResponseEntity<Object> editUser(@RequestBody @Valid AuthenticationConfirmAccountDto authenticationConfirmAccountDto, @org.jetbrains.annotations.NotNull BindingResult result) throws AuthenticationOperationExceptionBadRequest {
         if (result.hasErrors()) {
-            throw new AuthenticationOperationExceptionBadRequest(result.getFieldError().getDefaultMessage());
+            throw new AuthenticationOperationExceptionBadRequest(Objects.requireNonNull(result.getFieldError()).getDefaultMessage());
         }
 
         if(authenticationService.confirmEmail(authenticationConfirmAccountDto.getEmail())) {
@@ -180,9 +181,9 @@ public class AuthenticationController {
         @ApiResponse(responseCode = "400", description = "Bad Request", content = @Content(schema = @Schema(hidden = true))),
         @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true)))
     })
-    public ResponseEntity<Object> deleteUser(@RequestBody @Valid AuthenticationConfirmAccountDto authenticationConfirmAccountDto, @org.jetbrains.annotations.NotNull BindingResult result) throws Exception {
+    public ResponseEntity<Object> deleteUser(@RequestBody @Valid AuthenticationConfirmAccountDto authenticationConfirmAccountDto, @org.jetbrains.annotations.NotNull BindingResult result) throws AuthenticationOperationExceptionBadRequest {
         if (result.hasErrors()) {
-            throw new AuthenticationOperationExceptionBadRequest(result.getFieldError().getDefaultMessage());
+            throw new AuthenticationOperationExceptionBadRequest(Objects.requireNonNull(result.getFieldError()).getDefaultMessage());
         }
 
         if(authenticationService.confirmEmail(authenticationConfirmAccountDto.getEmail())) {
