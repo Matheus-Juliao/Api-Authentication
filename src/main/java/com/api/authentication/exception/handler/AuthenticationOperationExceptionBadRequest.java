@@ -1,4 +1,4 @@
-package com.api.authentication.exception;
+package com.api.authentication.exception.handler;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;

@@ -1,7 +1,7 @@
 package com.api.authentication.exception.handler;
 
 import com.api.authentication.configurations.MessageProperty;
-import com.api.authentication.exception.ExceptionResponse;
+import com.api.authentication.exception.ExceptionResponseBadRequest;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,13 +21,13 @@ public class CustomizeResponseEntityExceptionHandler {
     @Autowired
     MessageProperty messageProperty;
 
-    @ExceptionHandler(Exception.class)
-    public final @NotNull ResponseEntity<ExceptionResponse> handleBadResquestExceptions(Exception exception, WebRequest request) {
+    @ExceptionHandler(AuthenticationOperationExceptionBadRequest.class)
+    public final @NotNull ResponseEntity<ExceptionResponseBadRequest> handleBadResquestExceptions(Exception exception, WebRequest request) {
 
         String field = setField(exception);
 
-        ExceptionResponse exceptionResponse =
-                new ExceptionResponse(
+        ExceptionResponseBadRequest exceptionResponseBadRequest =
+                new ExceptionResponseBadRequest(
                         new Date(),
                         exception.getMessage(),
                         field,
@@ -35,7 +35,39 @@ public class CustomizeResponseEntityExceptionHandler {
                 );
 
 
-        return new ResponseEntity<>(exceptionResponse, HttpStatus.BAD_REQUEST);
+        return new ResponseEntity<>(exceptionResponseBadRequest, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(AuthenticationOperationExceptionNotFound.class)
+    public final @NotNull ResponseEntity<ExceptionResponseNotFoundAndUnauthorized> handleNotFoundExceptions(Exception exception, WebRequest request) {
+
+        String field = setField(exception);
+
+        ExceptionResponseNotFoundAndUnauthorized exceptionResponseNotFoundAndUnauthorized =
+                new ExceptionResponseNotFoundAndUnauthorized(
+                        new Date(),
+                        exception.getMessage(),
+                        HttpStatus.NOT_FOUND.value()
+                );
+
+
+        return new ResponseEntity<>(exceptionResponseNotFoundAndUnauthorized, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(AuthenticationOperationExceptionUnauthorized.class)
+    public final @NotNull ResponseEntity<ExceptionResponseNotFoundAndUnauthorized> handleUnauthorizedExceptions(Exception exception, WebRequest request) {
+
+        String field = setField(exception);
+
+        ExceptionResponseNotFoundAndUnauthorized exceptionResponseNotFoundAndUnauthorized =
+                new ExceptionResponseNotFoundAndUnauthorized(
+                        new Date(),
+                        exception.getMessage(),
+                        HttpStatus.UNAUTHORIZED.value()
+                );
+
+
+        return new ResponseEntity<>(exceptionResponseNotFoundAndUnauthorized, HttpStatus.UNAUTHORIZED);
     }
 
     private @Nullable String setField(@NotNull Exception exception)  {

@@ -5,7 +5,8 @@ import com.api.authentication.dtos.AuthenticationConfirmAccountDto;
 import com.api.authentication.dtos.AuthenticationDto;
 import com.api.authentication.dtos.CreateUserDto;
 import com.api.authentication.dtos.ErrorValidationDto;
-import com.api.authentication.exception.AuthenticationOperationExceptionBadRequest;
+import com.api.authentication.exception.handler.AuthenticationOperationExceptionBadRequest;
+import com.api.authentication.exception.handler.AuthenticationOperationExceptionUnauthorized;
 import com.api.authentication.messages.MessagesSuccess;
 import com.api.authentication.models.AuthenticationModel;
 import com.api.authentication.repositories.AuthenticationRepository;
@@ -127,11 +128,11 @@ public class AuthenticationService {
 
             //Verificando se a conta existente estava desativada para reativar se não a conta não pode ser criada
             if(!authenticationModel.isUserStatus()) {
-                authenticationDto.setLastAccountReactivationDate(LocalDateTime.now());
                 authenticationDto.setEmail(authenticationDto.getEmail());
                 authenticationDto.setPassword(passwordEncoder(authenticationDto.getPassword()));
                 authenticationModel.setExternalId(UUID.randomUUID().toString());
                 authenticationModel.setUserStatus(true);
+                authenticationModel.setLastAccountReactivationDate(LocalDateTime.now());
 
                 //Faz a conversão do dto em model passando o que vai ser convertido para o que está sendo convertido
                 BeanUtils.copyProperties(authenticationDto, authenticationModel);
@@ -194,9 +195,8 @@ public class AuthenticationService {
             return ResponseEntity.status(HttpStatus.OK).body(success);
         }
 
-        MessagesSuccess success = new MessagesSuccess(messageProperty.getProperty("error.unauthorized"), HttpStatus.UNAUTHORIZED.value());
+        throw new AuthenticationOperationExceptionUnauthorized(messageProperty.getProperty("error.unauthorized"));
 
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(success);
     }
 
     @Contract(pure = true)
@@ -217,7 +217,7 @@ public class AuthenticationService {
         return authenticationRepository.findAll(pageable);
     }
 
-    public Optional<AuthenticationModel> findById(String externalId) {
+    public AuthenticationModel findById(String externalId) {
         return authenticationRepository.findByExternalId(externalId);
     }
 

@@ -14,9 +14,11 @@ public class AuthenticationApplication {
 		SpringApplication.run(AuthenticationApplication.class, args);
 	}
 
-	@GetMapping("/")
+/*	@GetMapping("/")
 	@SuppressWarnings("unused")
 	public ResponseEntity<String> index() {
 		return ResponseEntity.ok("API rodando...");
 	}
+*/
+
 }

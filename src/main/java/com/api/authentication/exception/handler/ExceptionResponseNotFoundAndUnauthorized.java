@@ -1,24 +1,23 @@
-package com.api.authentication.exception;
+package com.api.authentication.exception.handler;
 
 import lombok.Getter;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Date;
 
 @Getter
-public class ExceptionResponse implements Serializable {
-
+public class ExceptionResponseNotFoundAndUnauthorized implements Serializable {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     private Date timestamp;
     private String message;
-    private String field;
     private Integer code;
 
-    public ExceptionResponse(Date timestamp, String message, String field, Integer code) {
+    public ExceptionResponseNotFoundAndUnauthorized(Date timestamp, String message, Integer code) {
         this.timestamp = timestamp;
         this.message = message;
-        this.field = field;
         this.code = code;
     }
 }

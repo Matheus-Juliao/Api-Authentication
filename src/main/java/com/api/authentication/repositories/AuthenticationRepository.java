@@ -17,7 +17,7 @@ public interface AuthenticationRepository extends JpaRepository<AuthenticationMo
     @Query(
         value = "SELECT * FROM users u WHERE u.external_id = :externalId",
         nativeQuery = true)
-    Optional<AuthenticationModel> findByExternalId(String externalId);
+    AuthenticationModel findByExternalId(String externalId);
 
     @Query(
             value = "SELECT * FROM users u WHERE u.cpf_cnpj = :cpfCnpj",
