@@ -4,6 +4,7 @@ import com.api.authentication.configurations.MessageProperty;
 import com.api.authentication.dtos.AuthenticationDto;
 import com.api.authentication.dtos.AuthenticationConfirmAccountDto;
 import com.api.authentication.dtos.CreateUserDto;
+import com.api.authentication.dtos.EmailDto;
 import com.api.authentication.exception.handler.AuthenticationOperationExceptionBadRequest;
 import com.api.authentication.exception.handler.AuthenticationOperationExceptionNotFound;
 import com.api.authentication.messages.MessagesSuccess;
@@ -137,6 +138,32 @@ public class AuthenticationController {
         throw new AuthenticationOperationExceptionNotFound(messageProperty.getProperty("error.notFound"));
     }
 
+    @PostMapping("/sendEmailToken")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Success", content = { @Content(mediaType = "application/json", schema = @Schema(implementation = MessagesSuccess.class)) }),
+            @ApiResponse(responseCode = "400", description = "Bad Request", content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true)))
+    })
+    @Operation(summary = "Send token by email", description = "API to email token a user on the platform")
+    public ResponseEntity<Object> sendEmailtoken(@RequestBody @Valid EmailDto emailDto, @org.jetbrains.annotations.NotNull BindingResult result) throws AuthenticationOperationExceptionBadRequest {
+        if (result.hasErrors()) {
+            throw new AuthenticationOperationExceptionBadRequest(Objects.requireNonNull(result.getFieldError()).getDefaultMessage());
+        }
+
+        if(authenticationService.confirmEmail(emailDto.getEmail())) {
+            AuthenticationModel authenticationModel = authenticationRepository.findByEmail(emailDto.getEmail());
+
+            if(!authenticationModel.isUserStatus()) {
+                throw new AuthenticationOperationExceptionBadRequest(messageProperty.getProperty("error.account.notRegistered"));
+            }
+
+            return authenticationService.sendEmail(authenticationModel);
+        }
+
+        throw new AuthenticationOperationExceptionBadRequest(messageProperty.getProperty("error.email.notRegistered"));
+
+    }
+
     @PutMapping("/resetPassword")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Success", content = { @Content(mediaType = "application/json", schema = @Schema(implementation = MessagesSuccess.class)) }),
@@ -156,7 +183,10 @@ public class AuthenticationController {
                 throw new AuthenticationOperationExceptionBadRequest(messageProperty.getProperty("error.account.notRegistered"));
             }
 
-            //Enviar token
+            //Validate token
+            if(!authenticationService.confirmToken(authenticationConfirmAccountDto)) {
+                throw new AuthenticationOperationExceptionBadRequest(messageProperty.getProperty("error.token.invalid"));
+            }
 
             authenticationConfirmAccountDto.setPassword(authenticationService.passwordEncoder(authenticationConfirmAccountDto.getPassword()));
 

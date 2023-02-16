@@ -18,4 +18,6 @@ public class AuthenticationConfirmAccountDto {
     @NotNull(message = "{error.password.notNull}")
     @Size(min = 8, max = 20, message = "{error.password.size}")
     private String password;
+
+    private String token;
 }

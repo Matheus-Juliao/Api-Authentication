@@ -1,15 +1,15 @@
 package com.api.authentication.services;
 
 import com.api.authentication.configurations.MessageProperty;
-import com.api.authentication.dtos.AuthenticationConfirmAccountDto;
-import com.api.authentication.dtos.AuthenticationDto;
-import com.api.authentication.dtos.CreateUserDto;
-import com.api.authentication.dtos.ErrorValidationDto;
+import com.api.authentication.dtos.*;
+import com.api.authentication.enums.StatusEmail;
 import com.api.authentication.exception.handler.AuthenticationOperationExceptionBadRequest;
 import com.api.authentication.exception.handler.AuthenticationOperationExceptionUnauthorized;
 import com.api.authentication.messages.MessagesSuccess;
 import com.api.authentication.models.AuthenticationModel;
+import com.api.authentication.models.EmailModel;
 import com.api.authentication.repositories.AuthenticationRepository;
+import com.api.authentication.repositories.EmailRepository;
 import com.api.authentication.security.SecurityConfigurations;
 import com.api.authentication.validators.Cnpj;
 import com.api.authentication.validators.Cpf;
@@ -26,6 +26,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mail.MailException;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.stereotype.Service;
 
@@ -41,10 +44,16 @@ public class AuthenticationService {
     AuthenticationRepository authenticationRepository;
 
     @Autowired
+    EmailRepository emailRepository;
+
+    @Autowired
     SecurityConfigurations securityConfigurations;
 
     @Autowired
     MessageProperty messageProperty;
+
+    @Autowired
+    private JavaMailSender emailSender;
 
     //Ações no banco de dados
     //@Transactional é usado quando temos relacionamentos que têem deleção ou salvamento em cascata, ele garante um rollback voltando tudo ao normal caso aconteca algum problema.
@@ -202,6 +211,60 @@ public class AuthenticationService {
     @Contract(pure = true)
     private @NotNull String removeTheTagCpfCnpj (@NotNull String cpfCnpj) {
         return  cpfCnpj.replaceAll("\\p{Punct}", "");
+    }
+    
+    
+    
+    
+    //Send email
+    @Transactional
+    public ResponseEntity<Object> sendEmail(@NotNull AuthenticationModel authenticationModel) {
+        EmailModel emailModel = new EmailModel();
+
+        emailModel.setOwnerRef(authenticationModel.getExternalId());
+        emailModel.setEmailTo(authenticationModel.getEmail());
+        emailModel.setEmailFrom("matheusjosejuliao@gmail.com");
+        emailModel.setSubject("Confirm email");
+        emailModel.setToken("1234");
+        emailModel.setText("Access token " + emailModel.getToken());
+
+        emailModel.setSendDateEmail(LocalDateTime.now());
+        try{
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(emailModel.getEmailFrom());
+            message.setTo(emailModel.getEmailTo());
+            message.setSubject(emailModel.getSubject());
+            message.setText(emailModel.getText());
+            emailSender.send(message);
+
+            System.out.println(StatusEmail.SENT);
+
+            emailModel.setStatusEmail(StatusEmail.SENT);
+        } catch (MailException e){
+
+            System.out.println(StatusEmail.ERROR);
+
+            emailModel.setStatusEmail(StatusEmail.ERROR);
+
+            throw new AuthenticationOperationExceptionBadRequest(messageProperty.getProperty("error.token"));
+        } finally {
+
+            emailRepository.save(emailModel);
+            MessagesSuccess success = new MessagesSuccess(messageProperty.getProperty("ok.sendToken.success"), HttpStatus.OK.value());
+
+            return ResponseEntity.status(HttpStatus.OK).body(success);
+        }
+
+    }
+
+    @Transactional
+    public boolean confirmToken(@NotNull AuthenticationConfirmAccountDto authenticationConfirmAccountDto) {
+
+        if(authenticationConfirmAccountDto.getToken().compareTo(emailRepository.findByEmail(authenticationConfirmAccountDto.getEmail()).get().getToken()) == 0) {
+            return true;
+        }
+
+        return false;
     }
 
 
